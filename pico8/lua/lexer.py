@@ -260,7 +260,15 @@ _TOKEN_MATCHERS.extend([
     br'\.\.\.', br'\.\.', br'\.']])
 _TOKEN_MATCHERS.extend([
     (re.compile(br'[a-zA-Z_][a-zA-Z0-9_]*'), TokName),
-    (re.compile(br'\?'), TokName)
+    (re.compile(br'\?'), TokName),
+    (re.compile(br'\xf0\x9f\x90\xb1'), TokName), # cat
+    (re.compile(br'\xe2\xac\x87\xef\xb8\x8f'), TokName), # down arrow
+    (re.compile(br'\xe2\xac\x86\xef\xb8\x8f'), TokName), # up arrow
+    (re.compile(br'\xe2\xac\x85\xef\xb8\x8f'), TokName), # left arrow
+    (re.compile(br'\xe2\x9e\xa1\xef\xb8\x8f'), TokName), # right arrow
+    (re.compile(br'\xe2\xa7\x97'), TokName), # hourglass
+    (re.compile(br'\xe2\x9d\x8e'), TokName), # X button
+    (re.compile(br'\xf0\x9f\x85\xbe\xef\xb8\x8f'), TokName), # O button
 ])
 
 
