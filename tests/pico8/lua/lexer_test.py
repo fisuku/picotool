@@ -482,6 +482,33 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(lexer.TokComment(b'-- by zep'), tokens[2])
         self.assertEqual(lexer.TokNewline(b'\n'), tokens[3])
 
+    def testBitwiseRotl(self):
+        lxr = lexer.Lexer(version=4)
+        lxr.process_lines([
+            b'A <<> B',
+        ])
+
+        self.assertEqual(5, len(lxr._tokens))
+
+    def testBitwiseRotr(self):
+        lxr = lexer.Lexer(version=4)
+        lxr.process_lines([
+            b'A >>< B',
+        ])
+        self.assertEqual(5, len(lxr._tokens))
+
+    # guarantee support for special characters, since they may be used as symbols by evil people
+    def testSpecialSymbols(self):
+        lxr = lexer.Lexer(version=4)
+        lxr.process_lines([
+            bytes(u'{…,∧,░,➡,⧗,▤,⬆,☉,🅾,◆,█,★,⬇,✽,●,♥,웃,⌂,⬅,▥,❎,🐱,ˇ,▒,♪,😐}', 'utf-8')
+        ])
+
+        print(lxr._tokens)
+
+        # 26 characters + 25 commas + 2 braces
+        self.assertEqual(53, len(lxr._tokens))
+
         
 if __name__ == '__main__':
     unittest.main()
