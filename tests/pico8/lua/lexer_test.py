@@ -543,6 +543,14 @@ class TestLexer(unittest.TestCase):
 
         self.assertEqual(8, len(lxr._tokens))
 
+    def testRecursiveInclude(self):
+        lxr = lexer.Lexer(version=18, filename="file.p8")
+        lxr.process_lines([
+            b'#include tests/pico8/lua/ext_recursive.lua\n',
+        ])
+
+        self.assertEqual(8, len(lxr._tokens))
+
     def testPeekOperators(self):
         lxr = lexer.Lexer(version=28)
         lxr.process_lines([
