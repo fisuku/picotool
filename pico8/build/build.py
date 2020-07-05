@@ -140,7 +140,7 @@ def _evaluate_require(ast, file_path, package_lua, lua_path=None):
 
             # TODO: support loading required code from .p8 and .p8.png files.
             with open(reqd_filepath, 'rb') as infh:
-                reqd_lua = lua.Lua.from_lines(infh, version=game.DEFAULT_VERSION)
+                reqd_lua = lua.Lua.from_lines(infh, version=game.DEFAULT_VERSION, filename=reqd_filepath)
 
             # TODO: Technically the use_game_loop option needs to be part of the package key
             # because it results in a different package than that without the option.
@@ -252,7 +252,7 @@ def do_build(args):
             if section == 'lua' and fn.endswith('.lua'):
                 with open(fn, 'rb') as infh:
                     result.lua = lua.Lua.from_lines(
-                        infh, version=game.DEFAULT_VERSION)
+                        infh, version=game.DEFAULT_VERSION, filename=fn)
                     package_lua = {}
                     _evaluate_require(result.lua, file_path=fn, package_lua=package_lua,
                                      lua_path=getattr(args, 'lua_path', None))

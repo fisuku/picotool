@@ -420,7 +420,7 @@ class TestLexer(unittest.TestCase):
     def testLexerError(self):
         lxr = lexer.Lexer(version=4)
         try:
-            lxr._process_line(b'123 @ 456')
+            lxr._process_line(b'123 ~ 456')
             self.fail()
         except lexer.LexerError as e:
             txt = str(e)  # coverage test
@@ -499,15 +499,59 @@ class TestLexer(unittest.TestCase):
 
     # guarantee support for special characters, since they may be used as symbols by evil people
     def testSpecialSymbols(self):
-        lxr = lexer.Lexer(version=4)
+        lxr = lexer.Lexer(version=18)
         lxr.process_lines([
             bytes(u'{…,∧,░,➡,⧗,▤,⬆,☉,🅾,◆,█,★,⬇,✽,●,♥,웃,⌂,⬅,▥,❎,🐱,ˇ,▒,♪,😐}', 'utf-8')
         ])
 
-        print(lxr._tokens)
-
         # 26 characters + 25 commas + 2 braces
         self.assertEqual(53, len(lxr._tokens))
+
+    def testSpecialSymbolInExpression(self):
+        lxr = lexer.Lexer(version=18)
+        lxr.process_lines([
+            bytes(u'if (f.⬇) bt,c="⬇",12', 'utf-8')
+        ])
+
+        self.assertEqual(15, len(lxr._tokens))
+
+    def testIncludeRaiseErrorOnMissingFile(self):
+        lxr = lexer.Lexer(version=18, filename="file.p8")
+
+        self.assertRaises(
+            FileNotFoundError,
+            lxr.process_lines,
+            [b'#include invalid.lua\n']
+        )
+
+    # we include external files immediately, we are more interested in the total combined program size.
+    def testInclude(self):
+        lxr = lexer.Lexer(version=18, filename="file.p8")
+        lxr.process_lines([
+            b'#include tests/pico8/lua/ext1.lua\n',
+            b'abc = "def"'
+        ])
+        
+        self.assertEqual(9, len(lxr._tokens))
+
+    def testMultiInclude(self):
+        lxr = lexer.Lexer(version=18, filename="file.p8")
+        lxr.process_lines([
+            b'#include tests/pico8/lua/ext1.lua\n',
+            b'#include tests/pico8/lua/ext1.lua\n'
+        ])
+
+        self.assertEqual(8, len(lxr._tokens))
+
+    def testPeekOperators(self):
+        lxr = lexer.Lexer(version=28)
+        lxr.process_lines([
+            b"@A\n",
+            b"%A\n",
+            b"$A\n",
+        ])
+
+        self.assertEqual(9, len(lxr._tokens))
 
         
 if __name__ == '__main__':

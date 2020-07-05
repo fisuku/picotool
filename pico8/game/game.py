@@ -10,6 +10,7 @@ __all__ = [
 import os
 import re
 import tempfile
+from pathlib import Path
 from .. import util
 from ..lua.lua import Lua
 from ..lua.lua import PICO8_LUA_CHAR_LIMIT
@@ -99,7 +100,7 @@ class Game():
         """
         g = cls(filename=filename)
 
-        g.lua = Lua(version=version)
+        g.lua = Lua(version=version, filename=filename)
         g.lua.update_from_lines([])
         g.gfx = Gfx.empty(version=version)
         g.gff = Gff.empty(version=version)
@@ -191,7 +192,7 @@ class Game():
         for section in data.section_lines:
             if section == 'lua':
                 new_game.lua = Lua.from_lines(
-                    data.section_lines[section], version=data.version)
+                    data.section_lines[section], version=data.version, filename=filename)
             elif section == 'gfx':
                 new_game.gfx = Gfx.from_lines(
                     data.section_lines[section], version=data.version)

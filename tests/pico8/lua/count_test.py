@@ -22,6 +22,8 @@ t()
     
     {'code':'', 'tokens': 0, 'chars': 0},
     {'code':'-- comment\n', 'tokens': 0, 'chars': 11},
+    # nb: include is expanded during lex
+    {'code':'#include tests/pico8/lua/ext1.lua\n', 'tokens': 3, 'chars': 4},
     {'code':'a=1\n', 'tokens': 3, 'chars': 4},
     {'code':'a = 1\n', 'tokens': 3, 'chars': 6},
     {'code':'abc = 123\n', 'tokens': 3, 'chars': 10},

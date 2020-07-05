@@ -26,26 +26,62 @@ PICO8_BUILTINS = {
     b'setmetatable', b'getmetatable', b'cocreate', b'coresume', b'costatus', b'yield',
     b'load', b'save', b'folder', b'ls', b'run', b'resume', b'reboot', b'stat', b'info',
     b'flip', b'printh', b'clip', b'pget', b'pset', b'sget', b'sset', b'fget', b'fset',
-    b'print', b'cursor', b'color', b'cls', b'camera', b'circ', b'circfill', b'line',
+    b'print', b'cursor', b'color', b'cls', b'camera', b'circ', b'circfill', b'line', b'tline',
     b'rect', b'rectfill', b'pal', b'palt', b'spr', b'sspr', b'add', b'del', b'all',
     b'foreach', b'pairs', b'btn', b'btnp', b'sfx', b'music', b'mget', b'mset', b'map',
-    b'peek', b'poke', b'memcpy', b'reload', b'cstore', b'memset', b'max', b'min', b'mid',
+    b'peek', b'poke', b'peek4', b'poke4', b'memcpy', b'reload', b'cstore', b'memset', b'max', b'min', b'mid',
     b'flr', b'cos', b'sin', b'atan2', b'sqrt', b'abs', b'rnd', b'srand', b'band', b'bor',
     b'bxor', b'bnot', b'shl', b'shr', b'cartdata', b'dget', b'dset', b'sub', b'sgn',
-    b'stop', b'menuitem', b'type', b'tostr', b'tonum', b'extcmd', b'ls', b'fillp',
+    b'stop', b'trace', b'menuitem', b'type', b'tostr', b'tonum', b'extcmd', b'ls', b'fillp',
     b'time', b'assert',
     b'_update_buttons',  # announced for 30/60 fps compatibility but not yet used?
     b'count',  # deprecated function
     b'mapdraw',  # deprecated function
     b'self',   # a special name in Lua OO
     b'?',   # alias for "print"
-    b'__index'  # internal function sometimes used by carts
+    b'@', b'%', b'$',   # 0.2 peek,peek2,peek4 aliases
+    b'__index'  # internal function sometimes used by carts,
 }
 
+# pico-8 glyphs
+# these can be used as labels, but also they have special
+# use for btn, btnp and fillp (as of 0.2).
+# thus, we must reserve them as internals so luafmt 
+# etc, leave them alone.
+PICO8_GLYPHS = {
+    b'\xe2\x80\xa6', # Q dotted line,
+    b'\xe2\x88\xa7', # W zigzag,
+    b'\xe2\x96\x91', # E fade,
+    b'\xe2\x9e\xa1\xef\xb8\x8f', # R right arrow,
+    b'\xe2\xa7\x97', # T time,
+    b'\xe2\x96\xa4', # Y horizontal lines,
+    b'\xe2\xac\x86\xef\xb8\x8f', # U up arrow,
+    b'\xe2\x98\x89', # I eye?,
+    b'\xf0\x9f\x85\xbe\xef\xb8\x8f', # O o button,
+    b'\xe2\x97\x86', # P diamond,
+    b'\xe2\x96\x88', # A full,
+    b'\xe2\x98\x85', # S star,
+    b'\xe2\xac\x87\xef\xb8\x8f', # D down arrow,
+    b'\xe2\x9c\xbd', # F some thing,
+    b'\xe2\x97\x8f', # G ball,
+    b'\xe2\x99\xa5', # H heart,
+    b'\xec\x9b\x83', # J dude,
+    b'\xe2\x8c\x82', # K house,
+    b'\xe2\xac\x85\xef\xb8\x8f', # L left arrow,
+    b'\xe2\x96\xa5', # Z vertical lines,
+    b'\xe2\x9d\x8e', # X x button,
+    b'\xf0\x9f\x90\xb1', # C cat :3,
+    b'\xcb\x87', # V birds (two v's),
+    b'\xe2\x96\x92', # B checkerboard,
+    b'\xe2\x99\xaa', # N musical note,
+    b'\xf0\x9f\x98\x90', # M face,
+}
+
+PICO8_BUILTINS.update(PICO8_GLYPHS)
 
 class Lua():
     """The Lua code for a game."""
-    def __init__(self, version):
+    def __init__(self, version, filename=None):
         """Initializer.
 
         If loading from a file, prefer Lua.from_lines().
@@ -54,7 +90,7 @@ class Lua():
           version: The Pico-8 data version from the game file header.
         """
         self._version = version
-        self._lexer = lexer.Lexer(version=version)
+        self._lexer = lexer.Lexer(version=version, filename=filename)
         self._parser = parser.Parser(version=version)
 
     def get_char_count(self):
@@ -78,7 +114,8 @@ class Lua():
                 c += 2
             elif (not isinstance(t, lexer.TokSpace) and
                   not isinstance(t, lexer.TokNewline) and
-                  not isinstance(t, lexer.TokComment)):
+                  not isinstance(t, lexer.TokComment) and 
+                  not isinstance(t, lexer.TokPreprocessor)):
                 c += 1
         return c
 
@@ -118,7 +155,7 @@ class Lua():
         return self._version
 
     @classmethod
-    def from_lines(cls, lines, version):
+    def from_lines(cls, lines, version, filename=None):
         """Produces a Lua data object from lines of Lua source.
 
         Args:
@@ -128,7 +165,7 @@ class Lua():
         Returns:
           A populated Lua instance.
         """
-        result = Lua(version)
+        result = Lua(version, filename)
         result.update_from_lines(lines)
         return result
 

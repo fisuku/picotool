@@ -311,6 +311,7 @@ class Parser():
         Raises:
           ParserError: The pattern doesn't match the next token.
         """
+
         tok = self._accept(tok_pattern)
         if tok is not None:
             return tok
@@ -318,6 +319,7 @@ class Parser():
             name = getattr(tok_pattern, 'name', tok_pattern.__name__)
             raise ParserError('Expected {}'.format(name),
                               token=self._peek())
+
         raise ParserError('Expected {}'.format(tok_pattern._data),
                           token=self._peek())
 

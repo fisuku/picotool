@@ -1,9 +1,11 @@
 """The Lua lexer."""
 
 import re
+import os
 
 from .. import util
-
+from pathlib import Path
+from . import lua
 
 __all__ = [
     'LexerError',
@@ -17,6 +19,7 @@ __all__ = [
     'TokLabel',
     'TokKeyword',
     'TokSymbol',
+    'TokPreprocessor',
     'Lexer',
     'LUA_KEYWORDS'
 ]
@@ -217,6 +220,23 @@ class TokSymbol(Token):
     """A Lua symbol."""
     name = 'symbol'
 
+class TokPreprocessor(Token):
+    """A Pico-8 preprocessor directive."""
+    name = 'preprocessor'
+
+    @property
+    def directive(self):
+        return self._data.split(b' ')[0][1:]
+
+    @property
+    def value(self):
+        return self._data.split(b' ', 1)[1]
+
+    @property
+    def filetype(self):
+        frags = self.value.split('.')
+        return frags[len(frags)-1].lower()       
+
 
 # A mapping of characters that can be escaped in Lua string literals using a
 # "\" character, mapped to their unescaped values.
@@ -233,6 +253,9 @@ del _STRING_REVERSE_ESCAPES[b'"']
 # classes. A token class of None causes the lexer to consume the pattern
 # without emitting a token. The patterns are matched in order.
 _TOKEN_MATCHERS = []
+_TOKEN_MATCHERS.extend([
+    (re.compile(br'\#include .*', re.IGNORECASE), TokPreprocessor)
+])
 _TOKEN_MATCHERS.extend([
     (re.compile(br'--.*'), TokComment),
     (re.compile(br'//.*'), TokComment),
@@ -252,18 +275,22 @@ _TOKEN_MATCHERS.extend([
     (re.compile(br'\b'+keyword+br'\b'), TokKeyword) for keyword in LUA_KEYWORDS])
 _TOKEN_MATCHERS.extend([
     (re.compile(symbol), TokSymbol) for symbol in [
-    b'>><', b'<<>', b'<<>', b'>>>', b'<<', b'>>', br'\^\^', br'\&', br'\|',
+    b'>><', b'<<>', b'<<>', b'>>>', # 0.2 bitwise
+    b'<<', b'>>', br'\^\^', br'\&', br'\|', # 0.2 bitwise
     br'\+=', b'-=', br'\*=', b'/=', b'%=',
     b'==', b'~=', b'!=', b'<=', b'>=',
     br'\+', b'-', br'\*', b'/', b'%', br'\^', b'#',
     b'<', b'>', b'=',
     br'\(', br'\)', b'{', b'}', br'\[', br'\]', b';', b':', b',',
     br'\.\.\.', br'\.\.', br'\.']])
-# text tokens - todo, normalise 
 _TOKEN_MATCHERS.extend([
     (re.compile(br'[a-zA-Z_][a-zA-Z0-9_]*'), TokName),
-    (re.compile(br'\?'), TokName),
-    (re.compile(br'[\xcb-\xf0][\x80-\xac]*[\x82-\xbe]'), TokName), # special characters
+    (re.compile(br'\?'), TokName), # print() shorthand
+    (re.compile(br'\\'), TokName), # 0.2 FLR operator (a \ b)
+    (re.compile(br'\@'), TokName), # 0.2 peek
+    (re.compile(br'\%'), TokName), # 0.2 peek2
+    (re.compile(br'\$'), TokName), # 0.2 peek4
+    (re.compile(br'[\xcb-\xf0][\x80-\xef]*[\x82-\xbe]'), TokName), # glyphs have special status
 ])
 
 
@@ -274,13 +301,15 @@ class Lexer():
     manage tokens that span multiple lines.
     """
 
-    def __init__(self, version):
+    def __init__(self, version, filename=None):
         """Initializer.
 
         Args:
           version: The Pico-8 data version from the game file header.
+          filename: The filename, so we can figure out relative includes.
         """
         self._version = version
+        self._filename = filename 
         self._tokens = []
         self._cur_lineno = 0
         self._cur_charno = 0
@@ -427,7 +456,36 @@ class Lexer():
             for (pat, tok_class) in _TOKEN_MATCHERS:
                 m = pat.match(s)
                 if m:
-                    if tok_class is not None:
+                    # todo: dry
+                    # should really be under if tok_class is not none
+                    if tok_class is TokPreprocessor:
+                        # special case: we have hit a preprocessor macro.
+                        # atm the only valid case for this is #include.
+                        # load the file.
+
+                        # todo: determine file: 
+                        # include supports p8, lua and p8:1 
+
+                        p = self.rel_path()
+
+                        token = tok_class(m.group(0),
+                                          self._cur_lineno,
+                                          self._cur_charno)
+
+                        
+                        incl = p / token.value.decode('utf-8')
+            
+                        with open(incl, 'rb') as f:
+                            try:
+                                include = lua.Lua.from_lines(f.readlines(), version=self._version, filename=incl);
+                                self._tokens.extend(include._lexer._tokens)
+                            except Exception as e:
+                                print("Parse error in included file %s" % incl)
+                                with open(incl, 'rb') as f:
+                                    print(f.readlines())
+                                raise()
+
+                    elif tok_class is not None:
                         token = tok_class(m.group(0),
                                           self._cur_lineno,
                                           self._cur_charno)
@@ -443,6 +501,12 @@ class Lexer():
             else:
                 self._cur_charno += 1
         return i
+
+    def rel_path(self):
+        if self._filename is None:
+            return Path(os.getcwd())
+
+        return Path(self._filename).parent
 
     def _process_line(self, line):
         """Processes a line of Lua source code.
