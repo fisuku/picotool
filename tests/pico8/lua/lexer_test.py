@@ -420,7 +420,7 @@ class TestLexer(unittest.TestCase):
     def testLexerError(self):
         lxr = lexer.Lexer(version=4)
         try:
-            lxr._process_line(b'123 ~ 456')
+            lxr._process_line(b'123 ` 456')
             self.fail()
         except lexer.LexerError as e:
             txt = str(e)  # coverage test
@@ -560,6 +560,14 @@ class TestLexer(unittest.TestCase):
         ])
 
         self.assertEqual(9, len(lxr._tokens))
+
+    def testBNotShorthand(self):
+        lxr = lexer.Lexer(version=28)
+        lxr.process_lines([
+            b'~A\n'
+        ])
+
+        self.assertEqual(3, len(lxr._tokens))
 
         
 if __name__ == '__main__':

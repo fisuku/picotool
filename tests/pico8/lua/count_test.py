@@ -98,10 +98,9 @@ b=false
 c=true
 ''', 'tokens': 9, 'chars': 21},
     {'code':'a = 123\n', 'tokens': 3, 'chars': 8},
-    {'code':'a = -123\n', 'tokens': 4, 'chars': 9},
+    {'code':'a = -123\n', 'tokens': 4, 'chars': 9}, # todo: negative numbers are now a single token
+    {'code':'a = 0xeda7\n', 'tokens': 3, 'chars': 11},
     {'code':'a = 123.45\n', 'tokens': 3, 'chars': 11},
-    {'code':'a = 123.45e2\n', 'tokens': 4, 'chars': 13},
-    {'code':'a = -123.45e2\n', 'tokens': 5, 'chars': 14},
     {'code':'a = \'string\'\n', 'tokens': 3, 'chars': 13},
     {'code':'a = "string"\n', 'tokens': 3, 'chars': 13},
     {'code':'function f(...)\nend\n', 'tokens': 4, 'chars': 20},

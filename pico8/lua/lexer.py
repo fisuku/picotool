@@ -280,16 +280,13 @@ _TOKEN_MATCHERS.extend([
     br'\+=', b'-=', br'\*=', b'/=', b'%=',
     b'==', b'~=', b'!=', b'<=', b'>=',
     br'\+', b'-', br'\*', b'/', b'%', br'\^', b'#',
-    b'<', b'>', b'=',
+    b'<', b'>', b'=',b'@',b'%',br'\$',
     br'\(', br'\)', b'{', b'}', br'\[', br'\]', b';', b':', b',',
-    br'\.\.\.', br'\.\.', br'\.']])
+    br'\.\.\.', br'\.\.', br'\.', br'\\']])
 _TOKEN_MATCHERS.extend([
-    (re.compile(br'[a-zA-Z_][a-zA-Z0-9_]*'), TokName),
+    (re.compile(br'-?[a-zA-Z_][a-zA-Z0-9_]*'), TokName),
     (re.compile(br'\?'), TokName), # print() shorthand
-    (re.compile(br'\\'), TokName), # 0.2 FLR operator (a \ b)
-    (re.compile(br'\@'), TokName), # 0.2 peek
-    (re.compile(br'\%'), TokName), # 0.2 peek2
-    (re.compile(br'\$'), TokName), # 0.2 peek4
+    (re.compile(br'\~'), TokName), # 0.2 bitwise NOT
     (re.compile(br'[\xcb-\xf0][\x80-\xef]*[\x82-\xbe]'), TokName), # glyphs have special status
 ])
 

@@ -156,7 +156,7 @@ _ast_node_types = (
     # StatLocalFunction funcname is a TokName, not a FunctionName
     ('StatLocalFunction', ('funcname', 'funcbody')),
 
-    ('StatLocalAssignment', ('namelist', 'explist')),
+    ('StatLocalAssignment', ('namelist', 'assignop', 'explist')),
     ('StatGoto', ('label',)),
     ('StatLabel', ('label',)),
     ('StatBreak', ()),
@@ -217,7 +217,7 @@ for (name, fields) in _ast_node_types:
 
 # (!= is PICO-8 specific.)
 BINOP_PATS = ([lexer.TokSymbol(sym) for sym in [
-    b'<', b'>', b'<=', b'>=', b'~=', b'!=', b'==', b'..', b'+', b'-', b'*', b'/', b'%', b'^'
+    b'<', b'>', b'<=', b'>=', b'~=', b'!=', b'==', b'..', b'+', b'-', b'*', b'/', b'%', b'^', b'\\'
 ]] + [lexer.TokKeyword(b'and'), lexer.TokKeyword(b'or')])
 
 
@@ -320,8 +320,25 @@ class Parser():
             raise ParserError('Expected {}'.format(name),
                               token=self._peek())
 
+        self._print_context(3)
         raise ParserError('Expected {}'.format(tok_pattern._data),
                           token=self._peek())
+
+    def _print_context(self, width=3):
+        """
+        return a bunch of tokens around the current position
+        """
+        start = max(self._tokens[self._pos]._lineno - width, 0)
+        end = self._tokens[self._pos]._lineno + width
+
+        for line in range(start, end):
+            print("{}: ".format(line+1), end="")
+            for tok in self._get_line(line):
+                print(tok._data.decode('utf-8'), end="")
+            print()
+
+    def _get_line(self, line_no):
+        return filter(lambda tok: tok._lineno == line_no, self._tokens)
 
     def _assert(self, node_or_none, desc):
         """Asserts that a node parsed, or raises a ParserError.
@@ -338,6 +355,20 @@ class Parser():
         if node_or_none is not None:
             return node_or_none
         raise ParserError(desc, token=self._peek())
+
+    def _accept_assign_op(self):
+        """Helper to accept an assign op (=, +=, -=, etc.)
+:
+        Returns:
+          If the token under the cursor matches, returns the token. Otherwise
+          None.
+        """
+        return (self._accept(lexer.TokSymbol(b'=')) or
+            self._accept(lexer.TokSymbol(b'+=')) or
+            self._accept(lexer.TokSymbol(b'-=')) or
+            self._accept(lexer.TokSymbol(b'*=')) or
+            self._accept(lexer.TokSymbol(b'/=')) or
+            self._accept(lexer.TokSymbol(b'%=')))
 
     def _chunk(self):
         """Parse a chunk / block.
@@ -399,7 +430,7 @@ class Parser():
           StatForIn(namelist, explist, block)
           StatFunction(funcname, funcbody)
           StatLocalFunction(funcname, funcbody)
-          StatLocalAssignment(namelist, explist)
+          StatLocalAssignment(namelist, assignop, explist)
           StatGoto(label)
           StatLabel(label)
         """
@@ -409,12 +440,8 @@ class Parser():
         if varlist is not None:
             # (Missing '=' is not a fatal error because varlist might also match
             # the beginning of a functioncall.)
-            assign_op = (self._accept(lexer.TokSymbol(b'=')) or
-                         self._accept(lexer.TokSymbol(b'+=')) or
-                         self._accept(lexer.TokSymbol(b'-=')) or
-                         self._accept(lexer.TokSymbol(b'*=')) or
-                         self._accept(lexer.TokSymbol(b'/=')) or
-                         self._accept(lexer.TokSymbol(b'%=')))
+            assign_op = self._accept_assign_op()
+
             if assign_op is not None:
                 explist = self._assert(self._explist(),
                                        'Expected expression in assignment')
@@ -556,10 +583,13 @@ class Parser():
             namelist = self._assert(self._namelist(),
                                     'namelist in local assignment')
             explist = None
-            if self._accept(lexer.TokSymbol(b'=')) is not None:
+            assign_op = self._accept_assign_op()
+
+            if assign_op is not None:
                 explist = self._assert(self._explist(),
                                        'explist in local assignment')
-            return StatLocalAssignment(namelist, explist,
+
+            return StatLocalAssignment(namelist, assign_op, explist,
                                        start=pos, end=self._pos)
 
         if self._accept(lexer.TokKeyword(b'goto')) is not None:
@@ -795,12 +825,24 @@ class Parser():
         if unop is None:
             unop = self._accept(lexer.TokKeyword(b'not'))
             if unop is None:
-                unop = self._accept(lexer.TokSymbol(b'#'))
+                unop = self._preexp()
+
                 if unop is None:
                     return None
+
         exp = self._assert(self._exp(), 'exp after unary op')
         return ExpUnOp(unop, exp, start=pos, end=self._pos)
     
+    def _preexp(self):
+        """Parse a prefixed expression, such as #, $, ~, etc
+        """
+
+        for sym in [b'#', b'@', b'%', b'$', b'~']:
+            unop = self._accept(lexer.TokSymbol(sym))
+
+            if unop is not None:
+                return unop
+
     def _prefixexp(self):
         """Parse a prefixexp.
 

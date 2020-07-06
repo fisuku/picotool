@@ -522,7 +522,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(1, p._pos)
         self.assertTrue(isinstance(node, parser.FieldExp))
         self.assertEqual(b'foo', node.exp.value.name.value)
-        
+
     def testTableConstructor(self):
         p = get_parser(b'{[1]=2,foo=3;4}')
         node = p._tableconstructor()

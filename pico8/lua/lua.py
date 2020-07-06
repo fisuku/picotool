@@ -39,7 +39,9 @@ PICO8_BUILTINS = {
     b'mapdraw',  # deprecated function
     b'self',   # a special name in Lua OO
     b'?',   # alias for "print"
+    b'ord', b'chr',   # 0.2 ordinal/character table set functions
     b'@', b'%', b'$',   # 0.2 peek,peek2,peek4 aliases
+    b'~'   # 0.2 bitwise NOT
     b'__index'  # internal function sometimes used by carts,
 }
 
@@ -109,13 +111,10 @@ class Lua():
                     t.matches(lexer.TokKeyword(b'end'))):
                 # Pico-8 generously does not count these as tokens.
                 pass
-            elif t.matches(lexer.TokNumber) and t._data.find(b'e') != -1:
-                # Pico-8 counts 'e' part of number as a separate token.
-                c += 2
             elif (not isinstance(t, lexer.TokSpace) and
                   not isinstance(t, lexer.TokNewline) and
-                  not isinstance(t, lexer.TokComment) and 
-                  not isinstance(t, lexer.TokPreprocessor)):
+                  not isinstance(t, lexer.TokComment)):
+                #print(t)
                 c += 1
         return c
 
@@ -703,7 +702,7 @@ class LuaASTEchoWriter(BaseLuaWriter):
         for t in self._walk(node.namelist):
             yield t
         if node.explist is not None:
-            yield self._get_text(node, b'=')
+            yield self._get_text(node, node.assignop.code)
             for t in self._walk(node.explist):
                 yield t
 
